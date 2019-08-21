@@ -1,0 +1,5 @@
+github.com/zeebo/errs v1.2.0 h1:Tk8UszIOLEjtx6DWnvfmMJe6N8q7vu03Bj95HMWDUkc=
+github.com/zeebo/errs v1.2.0/go.mod h1:sgbWHsvVuTPHcqJJGQ1WhI5KbWlHYz+2+2C/LSEtCw4=
+golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1 h1:A71BZbKSu+DtCNry/x5JKn20C+64DirDHmePEA8k0FY=
+golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1/go.mod h1:flIaEI6LNU6xOCD5PaJvn9wGP0agmIOqjrtsKGRguv4=
+rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
