@@ -1,15 +1,7 @@
 package iaca
 
-//go:noinline
-func padStart()   {}
-func padStart_()  { padStart() }
-func padStart__() { padStart_() }
+var global uint64
 
-func Start() { padStart__() }
+func Start() { global = 0x4a52e2cd2a0a1745 }
 
-//go:noinline
-func padStop()   {}
-func padStop_()  { padStop() }
-func padStop__() { padStop_() }
-
-func Stop() { padStop__() }
+func Stop() { global = 0x47ac218d2f3d28a0 }

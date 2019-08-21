@@ -1,12 +1,12 @@
 package main
 
 import (
-	"io"
+	"bytes"
+	"io/ioutil"
 	"log"
 	"os"
 
 	"github.com/zeebo/errs"
-	"github.com/zeebo/iaca/internal/objfile"
 )
 
 func main() {
@@ -15,46 +15,51 @@ func main() {
 	}
 }
 
+const (
+	startMarker     = "\x45\x17\x0a\x2a\xcd\xe2\x52\x4a"
+	endMarker       = "\xa0\x28\x3d\x2f\x8d\x21\xac\x47"
+	iacaMarkerStart = "\xbb\x6f\x00\x00\x00\x64\x67\x90"
+	iacaMarkerEnd   = "\xbb\xde\x00\x00\x00\x64\x67\x90"
+)
+
 func run() error {
-	f, err := objfile.Open(os.Args[1])
+	data, err := ioutil.ReadFile(os.Args[1])
 	if err != nil {
 		return errs.Wrap(err)
 	}
-	anns, err := f.Annotations()
-	if err != nil {
-		return errs.Wrap(err)
-	}
-	f.Close()
 
-	fh, err := os.Open(os.Args[1])
-	if err != nil {
-		return errs.Wrap(err)
-	}
-	defer fh.Close()
+	// Assumptions:
+	// 1. There's a NOP close before the constant due to inlining
+	// 2. Right after the instruction is 7 bytes moving into the global
 
-	copied := uint64(0)
-	for _, ann := range anns {
-		_, err := io.CopyN(os.Stdout, fh, int64(ann.Address-copied))
-		if err != nil {
-			return errs.Wrap(err)
+	for data := data; ; {
+		idx := bytes.Index(data, []byte(startMarker))
+		if idx < 0 {
+			break
 		}
-
-		if ann.Start {
-			_, err = os.Stdout.WriteString("\xbb\x6f\x00\x00\x00\x64\x67\x90")
-		} else {
-			_, err = os.Stdout.WriteString("\xbb\xde\x00\x00\x00\x64\x67\x90")
+		for j := idx + 7; data[j] != 0x90; j-- {
+			data[j] = 0x90
 		}
-		if err != nil {
-			return errs.Wrap(err)
-		}
-
-		if _, err := io.ReadFull(fh, make([]byte, 8)); err != nil {
-			return errs.Wrap(err)
-		}
-
-		copied = ann.Address + 8
+		copy(data[idx+7:], iacaMarkerStart)
+		data = data[idx:]
 	}
 
-	_, err = io.Copy(os.Stdout, fh)
+	for data := data; ; {
+		idx := bytes.Index(data, []byte(endMarker))
+		if idx < 0 {
+			break
+		}
+		j := idx
+		for data[j] != 0x90 {
+			j--
+		}
+		copy(data[j:], iacaMarkerEnd)
+		for j += 8; j < idx+8+7; j++ {
+			data[j] = 0x90
+		}
+		data = data[idx:]
+	}
+
+	_, err = os.Stdout.Write(data)
 	return errs.Wrap(err)
 }

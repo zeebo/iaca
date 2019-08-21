@@ -1,6 +1,6 @@
 # iaca
 
-This package helps one use Intel's IACA tool with go programs. It does this by providing some exported functions that get rewritten into the appropriate markers by the `iacaify` tool. Specifically, the `iaca.Start()` and `iaca.Stop()` function calls. To demonstate, first build an example binary (one exists at `github.com/zeebo/iaca/example`) which just contains 
+This package helps one use Intel's IACA tool with go programs. It does this by providing some exported functions that get rewritten into the appropriate markers by the `iacaify` tool. Specifically, the `iaca.Start()` and `iaca.Stop()` function calls. To demonstate, first build an example binary (one exists at `github.com/zeebo/iaca/example`) which just contains
 
 ```go
 package main
@@ -23,52 +23,39 @@ func main() {
 }
 ```
 
-One can use the objdump tool to inspect the generated code. In it, the function calls are still visible, and have some `NOPL` instructions proceeding it thanks to mid-stack inlining.
+One can use the objdump tool to inspect the generated code. In it, there's extra stores to some memory locations with some specific contants that the tooling will look for.
 
 ```
 $ go tool objdump -s main.main example
 TEXT main.main(SB) /home/jeff/go/src/github.com/zeebo/iaca/example/main.go
-  main.go:7   0x44f950  64488b0c25f8ffffff  MOVQ FS:0xfffffff8, CX
-  main.go:7   0x44f959  483b6110            CMPQ 0x10(CX), SP
-  main.go:7   0x44f95d  0f868e000000        JBE 0x44f9f1
-  main.go:7   0x44f963  4883ec08            SUBQ $0x8, SP
-  main.go:7   0x44f967  48892c24            MOVQ BP, 0(SP)
-  main.go:7   0x44f96b  488d2c24            LEAQ 0(SP), BP
+  main.go:8   0x44f930  90                    NOPL
+  main.go:8   0x44f931  48b845170a2acde2524a  MOVQ $0x4a52e2cd2a0a1745, AX
+  iaca.go:5   0x44f93b  488905eee30800        MOVQ AX, github.com/zeebo/iaca.global(SB)
 
-  main.go:8   0x44f96f  90                  NOPL
-  iaca.go:8   0x44f970  90                  NOPL
-  iaca.go:6   0x44f971  90                  NOPL
-  iaca.go:5   0x44f972  e8b9ffffff          CALL github.com/zeebo/iaca.padStart(SB)
+  main.go:9   0x44f942  488b0517e50800        MOVQ main.x(SB), AX
+  main.go:9   0x44f949  488d4801              LEAQ 0x1(AX), CX
+  main.go:9   0x44f94d  48890d0ce50800        MOVQ CX, main.x(SB)
+  main.go:10  0x44f954  488b0d0de50800        MOVQ main.x+8(SB), CX
+  main.go:10  0x44f95b  488d5101              LEAQ 0x1(CX), DX
+  main.go:10  0x44f95f  48891502e50800        MOVQ DX, main.x+8(SB)
+  main.go:11  0x44f966  488b1503e50800        MOVQ main.x+16(SB), DX
+  main.go:11  0x44f96d  488d5a01              LEAQ 0x1(DX), BX
+  main.go:11  0x44f971  48891df8e40800        MOVQ BX, main.x+16(SB)
+  main.go:12  0x44f978  488b1df9e40800        MOVQ main.x+24(SB), BX
+  main.go:13  0x44f97f  4883c002              ADDQ $0x2, AX
+  main.go:13  0x44f983  488905d6e40800        MOVQ AX, main.x(SB)
+  main.go:14  0x44f98a  488d4102              LEAQ 0x2(CX), AX
+  main.go:14  0x44f98e  488905d3e40800        MOVQ AX, main.x+8(SB)
+  main.go:15  0x44f995  488d4202              LEAQ 0x2(DX), AX
+  main.go:15  0x44f999  488905d0e40800        MOVQ AX, main.x+16(SB)
+  main.go:16  0x44f9a0  488d4302              LEAQ 0x2(BX), AX
+  main.go:16  0x44f9a4  488905cde40800        MOVQ AX, main.x+24(SB)
 
-  main.go:9   0x44f977  488b05e2e40800      MOVQ main.x(SB), AX
-  main.go:9   0x44f97e  488d4801            LEAQ 0x1(AX), CX
-  main.go:9   0x44f982  48890dd7e40800      MOVQ CX, main.x(SB)
-  main.go:10  0x44f989  488b0dd8e40800      MOVQ main.x+8(SB), CX
-  main.go:10  0x44f990  488d5101            LEAQ 0x1(CX), DX
-  main.go:10  0x44f994  488915cde40800      MOVQ DX, main.x+8(SB)
-  main.go:11  0x44f99b  488b15cee40800      MOVQ main.x+16(SB), DX
-  main.go:11  0x44f9a2  488d5a01            LEAQ 0x1(DX), BX
-  main.go:11  0x44f9a6  48891dc3e40800      MOVQ BX, main.x+16(SB)
-  main.go:12  0x44f9ad  488b1dc4e40800      MOVQ main.x+24(SB), BX
-  main.go:13  0x44f9b4  4883c002            ADDQ $0x2, AX
-  main.go:13  0x44f9b8  488905a1e40800      MOVQ AX, main.x(SB)
-  main.go:14  0x44f9bf  488d4102            LEAQ 0x2(CX), AX
-  main.go:14  0x44f9c3  4889059ee40800      MOVQ AX, main.x+8(SB)
-  main.go:15  0x44f9ca  488d4202            LEAQ 0x2(DX), AX
-  main.go:15  0x44f9ce  4889059be40800      MOVQ AX, main.x+16(SB)
-  main.go:16  0x44f9d5  488d4302            LEAQ 0x2(BX), AX
-  main.go:16  0x44f9d9  48890598e40800      MOVQ AX, main.x+24(SB)
+  main.go:17  0x44f9ab  90                    NOPL
+  iaca.go:7   0x44f9ac  48b8a0283d2f8d21ac47  MOVQ $0x47ac218d2f3d28a0, AX
+  iaca.go:7   0x44f9b6  48890573e30800        MOVQ AX, github.com/zeebo/iaca.global(SB)
 
-  main.go:17  0x44f9e0  90                  NOPL
-  iaca.go:15  0x44f9e1  90                  NOPL
-  iaca.go:13  0x44f9e2  90                  NOPL
-  iaca.go:12  0x44f9e3  e858ffffff          CALL github.com/zeebo/iaca.padStop(SB)
-
-  iaca.go:12  0x44f9e8  488b2c24            MOVQ 0(SP), BP
-  iaca.go:12  0x44f9ec  4883c408            ADDQ $0x8, SP
-  iaca.go:12  0x44f9f0  c3                  RET
-  main.go:7   0x44f9f1  e84a7effff          CALL runtime.morestack_noctxt(SB)
-  main.go:7   0x44f9f6  e955ffffff          JMP main.main(SB)
+  iaca.go:7   0x44f9bd  c3                    RET
 ```
 
 Then, if you run `iacaify` (import path `github.com/zeebo/iaca/iacaify`) on the binary and objdump the resulting output, you can see that the calls to the iaca code were replaced with the appropriate markers.
@@ -77,43 +64,52 @@ Then, if you run `iacaify` (import path `github.com/zeebo/iaca/iacaify`) on the 
 $ iacaify example > example2
 $ go tool objdump -s main.main out2
 TEXT main.main(SB) /home/jeff/go/src/github.com/zeebo/iaca/example/main.go
-  main.go:7   0x44f950  64488b0c25f8ffffff  MOVQ FS:0xfffffff8, CX
-  main.go:7   0x44f959  483b6110            CMPQ 0x10(CX), SP
-  main.go:7   0x44f95d  0f868e000000        JBE 0x44f9f1
-  main.go:7   0x44f963  4883ec08            SUBQ $0x8, SP
-  main.go:7   0x44f967  48892c24            MOVQ BP, 0(SP)
-  main.go:7   0x44f96b  488d2c24            LEAQ 0(SP), BP
+  main.go:8   0x44f930  90              NOPL
+  main.go:8   0x44f931  90              NOPL
+  main.go:8   0x44f932  90              NOPL
+  main.go:8   0x44f933  90              NOPL
+  main.go:8   0x44f934  90              NOPL
+  main.go:8   0x44f935  90              NOPL
+  main.go:8   0x44f936  90              NOPL
+  main.go:8   0x44f937  90              NOPL
+  main.go:8   0x44f938  90              NOPL
+  main.go:8   0x44f939  90              NOPL
+  main.go:8   0x44f93a  bb6f000000      MOVL $0x6f, BX
+  iaca.go:5   0x44f93f  646790          NOPL
 
-  main.go:8   0x44f96f  bb6f000000          MOVL $0x6f, BX
-  iaca.go:5   0x44f974  646790              NOPL
+  main.go:9   0x44f942  488b0517e50800  MOVQ main.x(SB), AX
+  main.go:9   0x44f949  488d4801        LEAQ 0x1(AX), CX
+  main.go:9   0x44f94d  48890d0ce50800  MOVQ CX, main.x(SB)
+  main.go:10  0x44f954  488b0d0de50800  MOVQ main.x+8(SB), CX
+  main.go:10  0x44f95b  488d5101        LEAQ 0x1(CX), DX
+  main.go:10  0x44f95f  48891502e50800  MOVQ DX, main.x+8(SB)
+  main.go:11  0x44f966  488b1503e50800  MOVQ main.x+16(SB), DX
+  main.go:11  0x44f96d  488d5a01        LEAQ 0x1(DX), BX
+  main.go:11  0x44f971  48891df8e40800  MOVQ BX, main.x+16(SB)
+  main.go:12  0x44f978  488b1df9e40800  MOVQ main.x+24(SB), BX
+  main.go:13  0x44f97f  4883c002        ADDQ $0x2, AX
+  main.go:13  0x44f983  488905d6e40800  MOVQ AX, main.x(SB)
+  main.go:14  0x44f98a  488d4102        LEAQ 0x2(CX), AX
+  main.go:14  0x44f98e  488905d3e40800  MOVQ AX, main.x+8(SB)
+  main.go:15  0x44f995  488d4202        LEAQ 0x2(DX), AX
+  main.go:15  0x44f999  488905d0e40800  MOVQ AX, main.x+16(SB)
+  main.go:16  0x44f9a0  488d4302        LEAQ 0x2(BX), AX
+  main.go:16  0x44f9a4  488905cde40800  MOVQ AX, main.x+24(SB)
 
-  main.go:9   0x44f977  488b05e2e40800      MOVQ main.x(SB), AX
-  main.go:9   0x44f97e  488d4801            LEAQ 0x1(AX), CX
-  main.go:9   0x44f982  48890dd7e40800      MOVQ CX, main.x(SB)
-  main.go:10  0x44f989  488b0dd8e40800      MOVQ main.x+8(SB), CX
-  main.go:10  0x44f990  488d5101            LEAQ 0x1(CX), DX
-  main.go:10  0x44f994  488915cde40800      MOVQ DX, main.x+8(SB)
-  main.go:11  0x44f99b  488b15cee40800      MOVQ main.x+16(SB), DX
-  main.go:11  0x44f9a2  488d5a01            LEAQ 0x1(DX), BX
-  main.go:11  0x44f9a6  48891dc3e40800      MOVQ BX, main.x+16(SB)
-  main.go:12  0x44f9ad  488b1dc4e40800      MOVQ main.x+24(SB), BX
-  main.go:13  0x44f9b4  4883c002            ADDQ $0x2, AX
-  main.go:13  0x44f9b8  488905a1e40800      MOVQ AX, main.x(SB)
-  main.go:14  0x44f9bf  488d4102            LEAQ 0x2(CX), AX
-  main.go:14  0x44f9c3  4889059ee40800      MOVQ AX, main.x+8(SB)
-  main.go:15  0x44f9ca  488d4202            LEAQ 0x2(DX), AX
-  main.go:15  0x44f9ce  4889059be40800      MOVQ AX, main.x+16(SB)
-  main.go:16  0x44f9d5  488d4302            LEAQ 0x2(BX), AX
-  main.go:16  0x44f9d9  48890598e40800      MOVQ AX, main.x+24(SB)
+  main.go:17  0x44f9ab  bbde000000      MOVL $0xde, BX
+  iaca.go:7   0x44f9b0  646790          NOPL
+  iaca.go:7   0x44f9b3  90              NOPL
+  iaca.go:7   0x44f9b4  90              NOPL
+  iaca.go:7   0x44f9b5  90              NOPL
+  iaca.go:7   0x44f9b6  90              NOPL
+  iaca.go:7   0x44f9b7  90              NOPL
+  iaca.go:7   0x44f9b8  90              NOPL
+  iaca.go:7   0x44f9b9  90              NOPL
+  iaca.go:7   0x44f9ba  90              NOPL
+  iaca.go:7   0x44f9bb  90              NOPL
+  iaca.go:7   0x44f9bc  90              NOPL
 
-  main.go:17  0x44f9e0  bbde000000          MOVL $0xde, BX
-  iaca.go:12  0x44f9e5  646790              NOPL
-
-  iaca.go:12  0x44f9e8  488b2c24            MOVQ 0(SP), BP
-  iaca.go:12  0x44f9ec  4883c408            ADDQ $0x8, SP
-  iaca.go:12  0x44f9f0  c3                  RET
-  main.go:7   0x44f9f1  e84a7effff          CALL runtime.morestack_noctxt(SB)
-  main.go:7   0x44f9f6  e955ffffff          JMP main.main(SB)
+  iaca.go:7   0x44f9bd  c3              RET
 ```
 
 Then, Intel's iaca tool works like expected.
